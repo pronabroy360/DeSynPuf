@@ -1,0 +1,17 @@
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+*.duckdb
+*.duckdb.wal
+*.db
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.pyc
+model_artifacts/
