@@ -2,7 +2,7 @@ PYTHON ?= python3
 RAW_DIR ?= data/raw
 DB ?= data/processed/desynpuf.duckdb
 
-.PHONY: install demo-data demo-smoke demo-train demo-explain ingest transform validate features train explain dashboard api test clean
+.PHONY: install demo-data demo-smoke demo-train demo-explain demo-all ingest transform validate features train explain dashboard api test clean
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -27,6 +27,8 @@ demo-explain:
 		--json-out data/processed/demo_llm_explanation_examples.json \
 		--report-md docs/demo_llm_explanation_report.md \
 		--limit 5
+
+demo-all: demo-smoke demo-train demo-explain
 
 ingest:
 	$(PYTHON) -m src.ingest.load_raw_files --raw-dir $(RAW_DIR) --db $(DB)

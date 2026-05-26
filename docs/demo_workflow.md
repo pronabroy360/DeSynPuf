@@ -45,6 +45,12 @@ data/processed/demo_quality_report.json
 docs/demo_quality_report.md
 ```
 
+To run the complete demo sequence, including model training and explanation examples:
+
+```bash
+make demo-all
+```
+
 ## Launch Dashboard Against Demo Data
 
 ```bash

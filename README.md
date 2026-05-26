@@ -73,9 +73,7 @@ Do not commit raw, interim, or processed data.
 If you have not downloaded CMS Sample 1 yet, run the tiny synthetic demo smoke test first:
 
 ```bash
-make demo-smoke
-make demo-train
-make demo-explain
+make demo-all
 DESYNPUF_DB=data/processed/demo_desynpuf.duckdb make dashboard
 ```
 
@@ -110,7 +108,7 @@ pytest -q
 The fastest end-to-end verification is:
 
 ```bash
-make demo-smoke
+make demo-all
 ```
 
 This also writes aggregate quality reports to:
