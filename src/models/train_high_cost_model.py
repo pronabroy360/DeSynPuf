@@ -9,15 +9,19 @@ import duckdb
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.calibration import calibration_curve
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
+    brier_score_loss,
+    confusion_matrix,
     f1_score,
     precision_recall_curve,
     precision_score,
+    roc_curve,
     roc_auc_score,
 )
 from sklearn.pipeline import Pipeline
@@ -28,6 +32,7 @@ DEFAULT_DB_PATH = Path("data/processed/desynpuf.duckdb")
 DEFAULT_MODEL_PATH = Path("data/processed/high_cost_model.joblib")
 DEFAULT_METRICS_PATH = Path("data/processed/model_metrics.json")
 DEFAULT_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
+DEFAULT_EVALUATION_PATH = Path("data/processed/model_evaluation.json")
 DEFAULT_REPORT_PATH = Path("docs/latest_model_report.md")
 
 NUMERIC_FEATURES = [
@@ -77,6 +82,67 @@ def precision_at_k(y_true: np.ndarray, y_score: np.ndarray, k_fraction: float = 
     return float(np.mean(y_true[top_indices]))
 
 
+def _downsample_curve(points: list[dict[str, float]], max_points: int = 200) -> list[dict[str, float]]:
+    if len(points) <= max_points:
+        return points
+    indices = np.linspace(0, len(points) - 1, max_points, dtype=int)
+    return [points[idx] for idx in indices]
+
+
+def build_evaluation_artifacts(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    threshold: float = 0.5,
+) -> dict[str, object]:
+    y_pred = (y_score >= threshold).astype(int)
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+
+    precision, recall, pr_thresholds = precision_recall_curve(y_true, y_score)
+    pr_points = [
+        {
+            "recall": float(recall[idx]),
+            "precision": float(precision[idx]),
+            "threshold": float(pr_thresholds[idx]) if idx < len(pr_thresholds) else 1.0,
+        }
+        for idx in range(len(precision))
+    ]
+
+    roc_points: list[dict[str, float]] = []
+    if len(np.unique(y_true)) > 1:
+        fpr, tpr, roc_thresholds = roc_curve(y_true, y_score)
+        roc_points = [
+            {
+                "fpr": float(fpr[idx]),
+                "tpr": float(tpr[idx]),
+                "threshold": float(roc_thresholds[idx]),
+            }
+            for idx in range(len(fpr))
+        ]
+
+    bin_count = int(min(10, max(3, len(y_true))))
+    prob_true, prob_pred = calibration_curve(y_true, y_score, n_bins=bin_count, strategy="quantile")
+    calibration_points = [
+        {"mean_predicted_probability": float(prob_pred[idx]), "observed_rate": float(prob_true[idx])}
+        for idx in range(len(prob_true))
+    ]
+
+    return {
+        "threshold": float(threshold),
+        "confusion_matrix": {
+            "true_negative": int(tn),
+            "false_positive": int(fp),
+            "false_negative": int(fn),
+            "true_positive": int(tp),
+        },
+        "calibration": _downsample_curve(calibration_points, max_points=50),
+        "precision_recall_curve": _downsample_curve(pr_points),
+        "roc_curve": _downsample_curve(roc_points),
+        "brier_score": float(brier_score_loss(y_true, y_score)),
+        "positive_rate_test": float(np.mean(y_true)),
+        "predicted_positive_rate_test": float(np.mean(y_pred)),
+    }
+
+
 def load_dataset(db_path: Path) -> pd.DataFrame:
     con = duckdb.connect(str(db_path), read_only=True)
     return con.execute(
@@ -113,7 +179,7 @@ def build_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     )
 
 
-def train_models(df: pd.DataFrame) -> tuple[Pipeline, dict[str, dict[str, float]]]:
+def train_models(df: pd.DataFrame) -> tuple[Pipeline, dict[str, object], dict[str, object]]:
     if df.empty:
         raise ValueError("gold_high_cost_prediction_dataset is empty. Build the Gold tables after loading raw data.")
 
@@ -145,6 +211,7 @@ def train_models(df: pd.DataFrame) -> tuple[Pipeline, dict[str, dict[str, float]
 
     metrics: dict[str, dict[str, float]] = {}
     fitted_models: dict[str, Pipeline] = {}
+    evaluations: dict[str, dict[str, object]] = {}
     for name, estimator in models.items():
         pipeline = Pipeline(
             steps=[
@@ -170,6 +237,7 @@ def train_models(df: pd.DataFrame) -> tuple[Pipeline, dict[str, dict[str, float]
             "recall_max": float(np.max(recall)) if len(recall) else float("nan"),
         }
         fitted_models[name] = pipeline
+        evaluations[name] = build_evaluation_artifacts(y_true=y_test, y_score=y_score, threshold=0.5)
 
     best_name = max(
         metrics,
@@ -185,6 +253,9 @@ def train_models(df: pd.DataFrame) -> tuple[Pipeline, dict[str, dict[str, float]
             "target_positive_rate": float(df[TARGET].mean()),
         },
         **metrics,
+    }, {
+        "best_model": best_name,
+        "models": evaluations,
     }
 
 
@@ -288,6 +359,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-out", type=Path, default=DEFAULT_MODEL_PATH)
     parser.add_argument("--metrics-out", type=Path, default=DEFAULT_METRICS_PATH)
     parser.add_argument("--feature-importance-out", type=Path, default=DEFAULT_IMPORTANCE_PATH)
+    parser.add_argument("--evaluation-out", type=Path, default=DEFAULT_EVALUATION_PATH)
     parser.add_argument("--report-md", type=Path, default=DEFAULT_REPORT_PATH)
     return parser.parse_args()
 
@@ -295,7 +367,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     df = load_dataset(args.db)
-    model, metrics = train_models(df)
+    model, metrics, evaluation = train_models(df)
     feature_importance = extract_feature_importance(model)
 
     args.model_out.parent.mkdir(parents=True, exist_ok=True)
@@ -304,11 +376,13 @@ def main() -> None:
     args.feature_importance_out.write_text(
         json.dumps(sanitize_for_json(feature_importance), indent=2, sort_keys=True)
     )
+    args.evaluation_out.write_text(json.dumps(sanitize_for_json(evaluation), indent=2, sort_keys=True))
     write_model_report(sanitize_for_json(metrics), feature_importance, args.report_md)
 
     print(f"Saved model: {args.model_out}")
     print(f"Saved metrics: {args.metrics_out}")
     print(f"Saved feature importance: {args.feature_importance_out}")
+    print(f"Saved evaluation artifacts: {args.evaluation_out}")
     print(f"Saved model report: {args.report_md}")
     print(json.dumps(sanitize_for_json(metrics), indent=2, sort_keys=True))
 

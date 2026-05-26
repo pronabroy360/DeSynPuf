@@ -73,3 +73,14 @@ docs/demo_llm_explanation_report.md
 ```
 
 These examples are generated from structured synthetic beneficiary-year features only. They are non-diagnostic and include explicit responsible-use language.
+
+## Demo Model Outputs
+
+After `make demo-train`, modeling outputs include:
+
+```text
+data/processed/demo_model_metrics.json
+data/processed/demo_model_feature_importance.json
+data/processed/demo_model_evaluation.json
+docs/demo_model_report.md
+```

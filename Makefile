@@ -19,6 +19,7 @@ demo-train:
 		--model-out data/processed/demo_high_cost_model.joblib \
 		--metrics-out data/processed/demo_model_metrics.json \
 		--feature-importance-out data/processed/demo_model_feature_importance.json \
+		--evaluation-out data/processed/demo_model_evaluation.json \
 		--report-md docs/demo_model_report.md
 
 demo-explain:
@@ -57,4 +58,4 @@ test:
 	pytest -q
 
 clean:
-	rm -f $(DB) $(DB).wal data/processed/demo_desynpuf.duckdb data/processed/demo_desynpuf.duckdb.wal
+	rm -f $(DB) $(DB).wal data/processed/demo_desynpuf.duckdb data/processed/demo_desynpuf.duckdb.wal data/processed/demo_model_evaluation.json data/processed/model_evaluation.json

@@ -17,6 +17,7 @@ Demo outputs:
 data/processed/demo_high_cost_model.joblib
 data/processed/demo_model_metrics.json
 data/processed/demo_model_feature_importance.json
+data/processed/demo_model_evaluation.json
 docs/demo_model_report.md
 ```
 
@@ -36,8 +37,19 @@ Default outputs:
 data/processed/high_cost_model.joblib
 data/processed/model_metrics.json
 data/processed/model_feature_importance.json
+data/processed/model_evaluation.json
 docs/latest_model_report.md
 ```
+
+## Evaluation Artifacts
+
+`model_evaluation.json` contains aggregate, non-identifiable evaluation structures for the best model:
+
+- precision-recall curve points
+- ROC curve points
+- calibration curve points
+- confusion matrix at threshold 0.50
+- Brier score and predicted positive rate
 
 ## Features
 

@@ -16,6 +16,7 @@ DB_PATH = Path(os.environ.get("DESYNPUF_DB", "data/processed/desynpuf.duckdb"))
 if DB_PATH.name.startswith("demo_"):
     METRICS_PATH = Path("data/processed/demo_model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/demo_model_feature_importance.json")
+    EVALUATION_PATH = Path("data/processed/demo_model_evaluation.json")
     QUALITY_REPORT_JSON = Path("data/processed/demo_quality_report.json")
     QUALITY_REPORT_MD = Path("docs/demo_quality_report.md")
     MODEL_REPORT_MD = Path("docs/demo_model_report.md")
@@ -23,6 +24,7 @@ if DB_PATH.name.startswith("demo_"):
 else:
     METRICS_PATH = Path("data/processed/model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
+    EVALUATION_PATH = Path("data/processed/model_evaluation.json")
     QUALITY_REPORT_JSON = Path("data/processed/quality_report.json")
     QUALITY_REPORT_MD = Path("docs/latest_quality_report.md")
     MODEL_REPORT_MD = Path("docs/latest_model_report.md")
@@ -368,6 +370,67 @@ def risk_model_page() -> None:
             )
             st.altair_chart(chart, use_container_width=True)
             st.dataframe(importance, use_container_width=True, hide_index=True)
+    if EVALUATION_PATH.exists():
+        st.subheader("Evaluation Curves")
+        evaluation = json.loads(EVALUATION_PATH.read_text())
+        best_model = evaluation.get("best_model")
+        model_eval = (evaluation.get("models") or {}).get(best_model, {})
+        pr_df = pd.DataFrame(model_eval.get("precision_recall_curve") or [])
+        roc_df = pd.DataFrame(model_eval.get("roc_curve") or [])
+        calibration_df = pd.DataFrame(model_eval.get("calibration") or [])
+        cm = model_eval.get("confusion_matrix") or {}
+        if not pr_df.empty:
+            pr_chart = alt.Chart(pr_df).mark_line(strokeWidth=3, color="#1d6f73").encode(
+                x=alt.X("recall:Q", title="Recall"),
+                y=alt.Y("precision:Q", title="Precision"),
+                tooltip=[
+                    alt.Tooltip("threshold:Q", format=".4f"),
+                    alt.Tooltip("recall:Q", format=".4f"),
+                    alt.Tooltip("precision:Q", format=".4f"),
+                ],
+            )
+            st.caption(f"Precision-Recall curve ({best_model})")
+            st.altair_chart(pr_chart, use_container_width=True)
+        if not roc_df.empty:
+            roc_chart = alt.Chart(roc_df).mark_line(strokeWidth=3, color="#b8664d").encode(
+                x=alt.X("fpr:Q", title="False positive rate"),
+                y=alt.Y("tpr:Q", title="True positive rate"),
+                tooltip=[
+                    alt.Tooltip("threshold:Q", format=".4f"),
+                    alt.Tooltip("fpr:Q", format=".4f"),
+                    alt.Tooltip("tpr:Q", format=".4f"),
+                ],
+            )
+            st.caption(f"ROC curve ({best_model})")
+            st.altair_chart(roc_chart, use_container_width=True)
+        if not calibration_df.empty:
+            cal_chart = (
+                alt.Chart(calibration_df)
+                .mark_line(point=True, strokeWidth=3, color="#7f9172")
+                .encode(
+                    x=alt.X("mean_predicted_probability:Q", title="Mean predicted probability"),
+                    y=alt.Y("observed_rate:Q", title="Observed event rate"),
+                    tooltip=[
+                        alt.Tooltip("mean_predicted_probability:Q", format=".4f"),
+                        alt.Tooltip("observed_rate:Q", format=".4f"),
+                    ],
+                )
+            )
+            st.caption(f"Calibration curve ({best_model})")
+            st.altair_chart(cal_chart, use_container_width=True)
+        if cm:
+            st.subheader("Confusion Matrix At Threshold 0.50")
+            cm_df = pd.DataFrame(
+                [
+                    {"metric": "True negatives", "value": cm.get("true_negative", 0)},
+                    {"metric": "False positives", "value": cm.get("false_positive", 0)},
+                    {"metric": "False negatives", "value": cm.get("false_negative", 0)},
+                    {"metric": "True positives", "value": cm.get("true_positive", 0)},
+                ]
+            )
+            st.dataframe(cm_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No evaluation artifact yet. Re-run `make train` or `make demo-train`.")
     markdown_report(MODEL_REPORT_MD, "Model Report")
 
 

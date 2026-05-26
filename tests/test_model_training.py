@@ -9,7 +9,12 @@ pytest.importorskip("pandas")
 
 import pandas as pd
 
-from src.models.train_high_cost_model import sanitize_for_json, train_models, extract_feature_importance
+from src.models.train_high_cost_model import (
+    sanitize_for_json,
+    train_models,
+    extract_feature_importance,
+    build_evaluation_artifacts,
+)
 
 
 def test_sanitize_for_json_replaces_nan():
@@ -46,8 +51,20 @@ def test_train_models_returns_feature_importance():
             "high_cost_next_year": [1, 0, 1, 0, 1, 0, 1, 0],
         }
     )
-    model, metrics = train_models(df)
+    model, metrics, evaluation = train_models(df)
     importance = extract_feature_importance(model)
     assert metrics["best_model"]["name"] in {"logistic_regression", "random_forest"}
     assert not math.isnan(metrics["dataset"]["target_positive_rate"])
     assert len(importance) > 0
+    best_name = metrics["best_model"]["name"]
+    assert best_name in evaluation["models"]
+
+
+def test_build_evaluation_artifacts_shapes():
+    y_true = pd.Series([0, 1, 0, 1, 1, 0]).to_numpy()
+    y_score = pd.Series([0.1, 0.9, 0.4, 0.8, 0.7, 0.2]).to_numpy()
+    artifacts = build_evaluation_artifacts(y_true=y_true, y_score=y_score, threshold=0.5)
+    assert artifacts["threshold"] == 0.5
+    assert len(artifacts["precision_recall_curve"]) > 0
+    assert len(artifacts["calibration"]) > 0
+    assert "true_positive" in artifacts["confusion_matrix"]
