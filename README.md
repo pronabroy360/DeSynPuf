@@ -59,6 +59,7 @@ Detailed docs:
 - [Data dictionary](docs/data_dictionary.md)
 - [Quality checks](docs/quality_checks.md)
 - [Dashboard](docs/dashboard.md)
+- [API](docs/api.md)
 - [Modeling](docs/modeling.md)
 - [LLM explainer](docs/llm_explainer.md)
 
@@ -109,6 +110,7 @@ python3 -m src.models.train_high_cost_model --db data/processed/desynpuf.duckdb
 python3 -m src.llm.generate_explanation_report --db data/processed/desynpuf.duckdb
 python3 -m src.reports.generate_professor_packet --context real --output docs/latest_professor_packet.md
 streamlit run dashboard/streamlit_app.py
+uvicorn src.api.main:app --reload
 ```
 
 ## Run Tests
