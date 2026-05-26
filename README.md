@@ -52,6 +52,55 @@ and high-cost prediction labels
 Streamlit dashboard + FastAPI + ML + LLM explanation layer
 ```
 
+## Project Infographics
+
+### 1) End-to-End Data Engineering Pipeline
+
+```mermaid
+flowchart LR
+    A[CMS DE-SynPUF Sample 1 ZIP/CSV] --> B[Bronze: Raw DuckDB Tables]
+    B --> C[Silver: Cleaned Claims + Code Tables]
+    C --> D[Gold: Patient-Year + Analytics Marts]
+    D --> E[Model Dataset: Next-Year High-Cost Labels]
+    E --> F[Model Training + Evaluation Artifacts]
+    D --> G[Streamlit Dashboard]
+    D --> H[FastAPI Endpoints]
+    D --> I[LLM Patient-Year Explainer]
+```
+
+### 2) High-Cost Prediction Workflow
+
+```mermaid
+flowchart TD
+    A[Gold Patient-Year Summary] --> B[Create Input/Target Pairs]
+    B --> C[2008 Features -> 2009 Label]
+    B --> D[2009 Features -> 2010 Label]
+    C --> E[Train Models]
+    D --> E
+    E --> F[Logistic Regression Baseline]
+    E --> G[Random Forest]
+    F --> H[Metrics: AUROC/AUPRC/F1/Precision@10%]
+    G --> H
+    H --> I[Best Model + Feature Importance]
+    I --> J[Model Report + Comparison Report]
+```
+
+### 3) Product Surface (What You Can Demo)
+
+```mermaid
+flowchart LR
+    A[DuckDB Warehouse] --> B[Streamlit Frontend]
+    A --> C[FastAPI Backend]
+    A --> D[Quality Validation]
+    A --> E[LLM Explanation Report]
+    C --> F[/overview + /analytics endpoints]
+    C --> G[/patient-year + /explain]
+    C --> H[/model + /quality artifacts]
+    B --> I[Overview / Cost / Utilization]
+    B --> J[Risk Model Diagnostics]
+    B --> K[Patient Explainer]
+```
+
 Detailed docs:
 
 - [Architecture](docs/architecture.md)
