@@ -33,7 +33,9 @@ DEFAULT_MODEL_PATH = Path("data/processed/high_cost_model.joblib")
 DEFAULT_METRICS_PATH = Path("data/processed/model_metrics.json")
 DEFAULT_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
 DEFAULT_EVALUATION_PATH = Path("data/processed/model_evaluation.json")
+DEFAULT_COMPARISON_PATH = Path("data/processed/model_comparison.json")
 DEFAULT_REPORT_PATH = Path("docs/latest_model_report.md")
+DEFAULT_COMPARISON_REPORT_PATH = Path("docs/latest_model_comparison_report.md")
 
 NUMERIC_FEATURES = [
     "age",
@@ -375,6 +377,92 @@ def write_model_report(
     output_path.write_text("\n".join(lines) + "\n")
 
 
+def summarize_model_comparison(metrics: dict[str, object], evaluation: dict[str, object]) -> list[dict[str, object]]:
+    models_eval = (evaluation.get("models") or {}) if isinstance(evaluation, dict) else {}
+    rows: list[dict[str, object]] = []
+    for model_name, values in metrics.items():
+        if model_name in {"best_model", "dataset"} or not isinstance(values, dict):
+            continue
+        model_eval = models_eval.get(model_name, {}) if isinstance(models_eval, dict) else {}
+        threshold_metrics = model_eval.get("threshold_metrics") if isinstance(model_eval, dict) else None
+        best_f1_threshold = None
+        if isinstance(threshold_metrics, list) and threshold_metrics:
+            candidate_rows = [
+                row
+                for row in threshold_metrics
+                if isinstance(row, dict)
+                and {"precision", "recall", "threshold"}.issubset(row.keys())
+            ]
+            if candidate_rows:
+                scored_rows = []
+                for row in candidate_rows:
+                    precision = float(row.get("precision", 0.0))
+                    recall = float(row.get("recall", 0.0))
+                    denominator = precision + recall
+                    f1_score_value = (2 * precision * recall / denominator) if denominator else 0.0
+                    scored_rows.append((f1_score_value, float(row.get("threshold", 0.5))))
+                scored_rows.sort(key=lambda item: item[0], reverse=True)
+                best_f1_threshold = scored_rows[0][1]
+        confusion = model_eval.get("confusion_matrix", {}) if isinstance(model_eval, dict) else {}
+        rows.append(
+            {
+                "model": model_name,
+                "auroc": values.get("auroc"),
+                "auprc": values.get("auprc"),
+                "f1_at_0_5": values.get("f1"),
+                "precision_at_0_5": values.get("precision"),
+                "precision_at_10_percent": values.get("precision_at_10_percent"),
+                "brier_score": model_eval.get("brier_score") if isinstance(model_eval, dict) else None,
+                "predicted_positive_rate_test": model_eval.get("predicted_positive_rate_test")
+                if isinstance(model_eval, dict)
+                else None,
+                "best_f1_threshold": best_f1_threshold,
+                "true_positive_at_0_5": confusion.get("true_positive") if isinstance(confusion, dict) else None,
+                "false_positive_at_0_5": confusion.get("false_positive") if isinstance(confusion, dict) else None,
+            }
+        )
+    return rows
+
+
+def write_model_comparison_report(
+    comparison: list[dict[str, object]],
+    best_model: str,
+    output_path: Path,
+) -> None:
+    def display(value: object) -> str:
+        if value is None:
+            return "N/A"
+        if isinstance(value, float):
+            return f"{value:.4f}"
+        return str(value)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Latest Model Comparison Report",
+        "",
+        "This report compares candidate high-cost prediction models on synthetic DE-SynPUF data.",
+        "Use these metrics as workflow diagnostics only, not clinical validation.",
+        "",
+        f"Selected best model: **{best_model}**",
+        "",
+        "| Model | AUROC | AUPRC | F1@0.50 | Precision@0.50 | Precision@10% | Brier | Best F1 Threshold |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for row in comparison:
+        lines.append(
+            "| "
+            + f"`{row.get('model')}` | "
+            + f"{display(row.get('auroc'))} | "
+            + f"{display(row.get('auprc'))} | "
+            + f"{display(row.get('f1_at_0_5'))} | "
+            + f"{display(row.get('precision_at_0_5'))} | "
+            + f"{display(row.get('precision_at_10_percent'))} | "
+            + f"{display(row.get('brier_score'))} | "
+            + f"{display(row.get('best_f1_threshold'))} |"
+        )
+    output_path.write_text("\n".join(lines) + "\n")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train high-cost beneficiary prediction models.")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB_PATH)
@@ -382,7 +470,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--metrics-out", type=Path, default=DEFAULT_METRICS_PATH)
     parser.add_argument("--feature-importance-out", type=Path, default=DEFAULT_IMPORTANCE_PATH)
     parser.add_argument("--evaluation-out", type=Path, default=DEFAULT_EVALUATION_PATH)
+    parser.add_argument("--comparison-out", type=Path, default=DEFAULT_COMPARISON_PATH)
     parser.add_argument("--report-md", type=Path, default=DEFAULT_REPORT_PATH)
+    parser.add_argument("--comparison-report-md", type=Path, default=DEFAULT_COMPARISON_REPORT_PATH)
     return parser.parse_args()
 
 
@@ -391,6 +481,7 @@ def main() -> None:
     df = load_dataset(args.db)
     model, metrics, evaluation = train_models(df)
     feature_importance = extract_feature_importance(model)
+    comparison = summarize_model_comparison(metrics, evaluation)
 
     args.model_out.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, args.model_out)
@@ -399,13 +490,18 @@ def main() -> None:
         json.dumps(sanitize_for_json(feature_importance), indent=2, sort_keys=True)
     )
     args.evaluation_out.write_text(json.dumps(sanitize_for_json(evaluation), indent=2, sort_keys=True))
+    args.comparison_out.write_text(json.dumps(sanitize_for_json(comparison), indent=2, sort_keys=True))
     write_model_report(sanitize_for_json(metrics), feature_importance, args.report_md)
+    best_model = str((metrics.get("best_model") or {}).get("name", "unknown")) if isinstance(metrics, dict) else "unknown"
+    write_model_comparison_report(sanitize_for_json(comparison), best_model, args.comparison_report_md)
 
     print(f"Saved model: {args.model_out}")
     print(f"Saved metrics: {args.metrics_out}")
     print(f"Saved feature importance: {args.feature_importance_out}")
     print(f"Saved evaluation artifacts: {args.evaluation_out}")
+    print(f"Saved comparison artifacts: {args.comparison_out}")
     print(f"Saved model report: {args.report_md}")
+    print(f"Saved comparison report: {args.comparison_report_md}")
     print(json.dumps(sanitize_for_json(metrics), indent=2, sort_keys=True))
 
 

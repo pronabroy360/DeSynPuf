@@ -17,17 +17,21 @@ if DB_PATH.name.startswith("demo_"):
     METRICS_PATH = Path("data/processed/demo_model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/demo_model_feature_importance.json")
     EVALUATION_PATH = Path("data/processed/demo_model_evaluation.json")
+    COMPARISON_PATH = Path("data/processed/demo_model_comparison.json")
     QUALITY_REPORT_JSON = Path("data/processed/demo_quality_report.json")
     QUALITY_REPORT_MD = Path("docs/demo_quality_report.md")
     MODEL_REPORT_MD = Path("docs/demo_model_report.md")
+    COMPARISON_REPORT_MD = Path("docs/demo_model_comparison_report.md")
     LLM_REPORT_MD = Path("docs/demo_llm_explanation_report.md")
 else:
     METRICS_PATH = Path("data/processed/model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
     EVALUATION_PATH = Path("data/processed/model_evaluation.json")
+    COMPARISON_PATH = Path("data/processed/model_comparison.json")
     QUALITY_REPORT_JSON = Path("data/processed/quality_report.json")
     QUALITY_REPORT_MD = Path("docs/latest_quality_report.md")
     MODEL_REPORT_MD = Path("docs/latest_model_report.md")
+    COMPARISON_REPORT_MD = Path("docs/latest_model_comparison_report.md")
     LLM_REPORT_MD = Path("docs/latest_llm_explanation_report.md")
 
 
@@ -392,6 +396,11 @@ def risk_model_page() -> None:
             st.dataframe(metrics_df, use_container_width=True, hide_index=True)
     else:
         st.info("No trained model metrics yet. Run `make train` after building the Gold tables.")
+    if COMPARISON_PATH.exists():
+        st.subheader("Comparison Artifact")
+        comparison_df = pd.DataFrame(json.loads(COMPARISON_PATH.read_text()))
+        if not comparison_df.empty:
+            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
     if FEATURE_IMPORTANCE_PATH.exists():
         st.subheader("Top Feature Importance")
         importance = pd.DataFrame(json.loads(FEATURE_IMPORTANCE_PATH.read_text()))
@@ -493,6 +502,7 @@ def risk_model_page() -> None:
     else:
         st.info("No evaluation artifact yet. Re-run `make train` or `make demo-train`.")
     markdown_report(MODEL_REPORT_MD, "Model Report")
+    markdown_report(COMPARISON_REPORT_MD, "Model Comparison Report")
 
 
 def patient_explainer_page() -> None:
@@ -549,6 +559,7 @@ def quality_reports_page() -> None:
         st.info(f"No quality JSON report found yet: `{QUALITY_REPORT_JSON}`")
     markdown_report(QUALITY_REPORT_MD, "Quality Markdown Report")
     markdown_report(MODEL_REPORT_MD, "Model Markdown Report")
+    markdown_report(COMPARISON_REPORT_MD, "Model Comparison Markdown Report")
     markdown_report(LLM_REPORT_MD, "LLM Explanation Markdown Report")
 
 

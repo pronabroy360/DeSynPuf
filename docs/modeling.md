@@ -18,7 +18,9 @@ data/processed/demo_high_cost_model.joblib
 data/processed/demo_model_metrics.json
 data/processed/demo_model_feature_importance.json
 data/processed/demo_model_evaluation.json
+data/processed/demo_model_comparison.json
 docs/demo_model_report.md
+docs/demo_model_comparison_report.md
 ```
 
 The demo dataset is intentionally tiny. Use it only to verify that the workflow runs end-to-end.
@@ -38,7 +40,9 @@ data/processed/high_cost_model.joblib
 data/processed/model_metrics.json
 data/processed/model_feature_importance.json
 data/processed/model_evaluation.json
+data/processed/model_comparison.json
 docs/latest_model_report.md
+docs/latest_model_comparison_report.md
 ```
 
 ## Evaluation Artifacts

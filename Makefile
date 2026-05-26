@@ -20,7 +20,9 @@ demo-train:
 		--metrics-out data/processed/demo_model_metrics.json \
 		--feature-importance-out data/processed/demo_model_feature_importance.json \
 		--evaluation-out data/processed/demo_model_evaluation.json \
-		--report-md docs/demo_model_report.md
+		--comparison-out data/processed/demo_model_comparison.json \
+		--report-md docs/demo_model_report.md \
+		--comparison-report-md docs/demo_model_comparison_report.md
 
 demo-explain:
 	$(PYTHON) -m src.llm.generate_explanation_report \
@@ -58,4 +60,4 @@ test:
 	pytest -q
 
 clean:
-	rm -f $(DB) $(DB).wal data/processed/demo_desynpuf.duckdb data/processed/demo_desynpuf.duckdb.wal data/processed/demo_model_evaluation.json data/processed/model_evaluation.json
+	rm -f $(DB) $(DB).wal data/processed/demo_desynpuf.duckdb data/processed/demo_desynpuf.duckdb.wal data/processed/demo_model_evaluation.json data/processed/model_evaluation.json data/processed/demo_model_comparison.json data/processed/model_comparison.json

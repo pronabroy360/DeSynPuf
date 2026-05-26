@@ -14,6 +14,7 @@ from src.models.train_high_cost_model import (
     train_models,
     extract_feature_importance,
     build_evaluation_artifacts,
+    summarize_model_comparison,
 )
 
 
@@ -58,6 +59,9 @@ def test_train_models_returns_feature_importance():
     assert len(importance) > 0
     best_name = metrics["best_model"]["name"]
     assert best_name in evaluation["models"]
+    comparison = summarize_model_comparison(metrics, evaluation)
+    assert len(comparison) >= 1
+    assert "model" in comparison[0]
 
 
 def test_build_evaluation_artifacts_shapes():

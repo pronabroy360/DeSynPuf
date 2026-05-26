@@ -82,5 +82,7 @@ After `make demo-train`, modeling outputs include:
 data/processed/demo_model_metrics.json
 data/processed/demo_model_feature_importance.json
 data/processed/demo_model_evaluation.json
+data/processed/demo_model_comparison.json
 docs/demo_model_report.md
+docs/demo_model_comparison_report.md
 ```
