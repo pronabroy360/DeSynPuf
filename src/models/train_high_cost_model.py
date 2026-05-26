@@ -174,13 +174,17 @@ def load_dataset(db_path: Path) -> pd.DataFrame:
         SELECT *
         FROM gold_high_cost_prediction_dataset
         WHERE high_cost_next_year IS NOT NULL
+          AND input_year BETWEEN 2008 AND 2009
         """
     ).df()
 
 
 def build_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
-    numeric = [column for column in NUMERIC_FEATURES if column in df.columns]
-    categorical = [column for column in CATEGORICAL_FEATURES if column in df.columns]
+    numeric = [column for column in NUMERIC_FEATURES if column in df.columns and df[column].notna().any()]
+    categorical = [column for column in CATEGORICAL_FEATURES if column in df.columns and df[column].notna().any()]
+
+    if not numeric and not categorical:
+        raise ValueError("No usable model features found after null filtering.")
 
     numeric_pipeline = Pipeline(
         steps=[

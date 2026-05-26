@@ -90,7 +90,8 @@ LEFT JOIN claim_rollup c
    AND py.year = c.year
 LEFT JOIN rx_rollup rx
     ON py.beneficiary_id = rx.beneficiary_id
-   AND py.year = rx.year;
+   AND py.year = rx.year
+WHERE py.year BETWEEN 2008 AND 2010;
 
 -- ---------------------------------------------------------------------------
 -- gold_patient_utilization_summary

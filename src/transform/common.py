@@ -654,6 +654,7 @@ def create_gold_patient_year_summary(con: duckdb.DuckDBPyConnection) -> None:
         LEFT JOIN proc_rollup proc
             ON py.beneficiary_id = proc.beneficiary_id
            AND py.year = proc.year
+        WHERE py.year BETWEEN 2008 AND 2010
         """
     )
 
