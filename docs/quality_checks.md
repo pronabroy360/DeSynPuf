@@ -19,7 +19,9 @@ python3 -m src.quality.validate_warehouse --db data/processed/desynpuf.duckdb
 - The patient-year mart has one row per `beneficiary_id` and `year`.
 - Patient-year keys are non-null.
 - Years are limited to 2008, 2009, and 2010.
-- Cost and utilization measures are nonnegative.
+- Negative cost adjustments are tracked as informational (expected in claims reversals/adjustments).
+- Cost rows below an extreme threshold (default `< -5000`) fail validation.
+- Utilization measures are nonnegative.
 - The high-cost prediction dataset has rows.
 - High-cost labels are non-null.
 - Target years equal input years plus one.

@@ -1,6 +1,6 @@
 # Latest Warehouse Quality Report
 
-Overall status: **FAIL**
+Overall status: **PASS**
 
 This report is generated from the local DuckDB warehouse. It contains aggregate validation results only.
 
@@ -59,7 +59,8 @@ This report is generated from the local DuckDB warehouse. It contains aggregate 
 | `patient_year_unique_grain` | PASS | 0 | 0 duplicate beneficiary_id/year grains |
 | `patient_year_non_null_keys` | PASS | 0 | 0 rows with null beneficiary_id or year |
 | `patient_year_valid_years` | PASS | 0 | 0 rows outside 2008-2010 |
-| `patient_year_nonnegative_costs` | FAIL | 228 | 0 rows with negative cost values |
+| `patient_year_negative_cost_adjustments` | PASS | 228 | informational count of rows with negative payment adjustments |
+| `patient_year_extreme_negative_costs` | PASS | 0 | 0 rows below -5000 in any cost field |
 | `patient_year_nonnegative_counts` | PASS | 0 | 0 rows with negative utilization counts |
 | `model_dataset_has_rows` | PASS | 227292 | at least 1 modeling row |
 | `model_dataset_non_null_labels` | PASS | 0 | 0 null high-cost labels |

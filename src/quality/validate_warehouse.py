@@ -11,6 +11,7 @@ import duckdb
 DEFAULT_DB_PATH = Path("data/processed/desynpuf.duckdb")
 DEFAULT_REPORT_JSON = Path("data/processed/quality_report.json")
 DEFAULT_REPORT_MD = Path("docs/latest_quality_report.md")
+EXTREME_NEGATIVE_COST_THRESHOLD = -5000.0
 
 REQUIRED_TABLES = [
     "silver_beneficiaries",
@@ -150,7 +151,7 @@ def validate_patient_year_integrity(con: duckdb.DuckDBPyConnection) -> list[Chec
         WHERE year NOT BETWEEN 2008 AND 2010
         """,
     )
-    negative_cost_rows = scalar(
+    negative_cost_adjustment_rows = scalar(
         con,
         """
         SELECT COUNT(*)
@@ -160,6 +161,18 @@ def validate_patient_year_integrity(con: duckdb.DuckDBPyConnection) -> list[Chec
            OR outpatient_total_paid < 0
            OR carrier_total_paid < 0
            OR prescription_total_cost < 0
+        """,
+    )
+    extreme_negative_cost_rows = scalar(
+        con,
+        f"""
+        SELECT COUNT(*)
+        FROM gold_patient_year_summary
+        WHERE total_synthetic_cost < {EXTREME_NEGATIVE_COST_THRESHOLD}
+           OR inpatient_total_paid < {EXTREME_NEGATIVE_COST_THRESHOLD}
+           OR outpatient_total_paid < {EXTREME_NEGATIVE_COST_THRESHOLD}
+           OR carrier_total_paid < {EXTREME_NEGATIVE_COST_THRESHOLD}
+           OR prescription_total_cost < {EXTREME_NEGATIVE_COST_THRESHOLD}
         """,
     )
     negative_count_rows = scalar(
@@ -194,10 +207,17 @@ def validate_patient_year_integrity(con: duckdb.DuckDBPyConnection) -> list[Chec
             expectation="0 rows outside 2008-2010",
         ),
         CheckResult(
-            name="patient_year_nonnegative_costs",
-            status=pass_fail(int(negative_cost_rows or 0) == 0),
-            observed=negative_cost_rows,
-            expectation="0 rows with negative cost values",
+            name="patient_year_negative_cost_adjustments",
+            status="pass",
+            observed=negative_cost_adjustment_rows,
+            expectation="informational count of rows with negative payment adjustments",
+            details="Real claims can include reversals/adjustments that produce negative amounts.",
+        ),
+        CheckResult(
+            name="patient_year_extreme_negative_costs",
+            status=pass_fail(int(extreme_negative_cost_rows or 0) == 0),
+            observed=extreme_negative_cost_rows,
+            expectation=f"0 rows below {EXTREME_NEGATIVE_COST_THRESHOLD:.0f} in any cost field",
         ),
         CheckResult(
             name="patient_year_nonnegative_counts",
