@@ -58,6 +58,7 @@ Detailed docs:
 - [Schema and lineage](docs/schema_lineage.md)
 - [Data dictionary](docs/data_dictionary.md)
 - [Quality checks](docs/quality_checks.md)
+- [Dashboard](docs/dashboard.md)
 - [Modeling](docs/modeling.md)
 - [LLM explainer](docs/llm_explainer.md)
 

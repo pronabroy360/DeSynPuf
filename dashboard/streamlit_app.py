@@ -16,9 +16,17 @@ DB_PATH = Path(os.environ.get("DESYNPUF_DB", "data/processed/desynpuf.duckdb"))
 if DB_PATH.name.startswith("demo_"):
     METRICS_PATH = Path("data/processed/demo_model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/demo_model_feature_importance.json")
+    QUALITY_REPORT_JSON = Path("data/processed/demo_quality_report.json")
+    QUALITY_REPORT_MD = Path("docs/demo_quality_report.md")
+    MODEL_REPORT_MD = Path("docs/demo_model_report.md")
+    LLM_REPORT_MD = Path("docs/demo_llm_explanation_report.md")
 else:
     METRICS_PATH = Path("data/processed/model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
+    QUALITY_REPORT_JSON = Path("data/processed/quality_report.json")
+    QUALITY_REPORT_MD = Path("docs/latest_quality_report.md")
+    MODEL_REPORT_MD = Path("docs/latest_model_report.md")
+    LLM_REPORT_MD = Path("docs/latest_llm_explanation_report.md")
 
 
 st.set_page_config(
@@ -54,6 +62,24 @@ st.markdown(
     }
     section[data-testid="stSidebar"] * {
       color: #f6efe3;
+    }
+    .hero-card {
+      background:
+        linear-gradient(135deg, rgba(23,32,28,.92), rgba(29,111,115,.84)),
+        radial-gradient(circle at top right, rgba(215,168,79,.35), transparent 22rem);
+      border-radius: 26px;
+      padding: 28px 30px;
+      color: #f6efe3;
+      box-shadow: 0 18px 48px rgba(23,32,28,.18);
+      margin-bottom: 20px;
+    }
+    .hero-card h1 {
+      margin-bottom: 8px;
+      color: #fff8ec;
+    }
+    .hero-card p {
+      font-size: 1.05rem;
+      max-width: 850px;
     }
     </style>
     """,
@@ -101,6 +127,21 @@ def require_database() -> bool:
     return False
 
 
+def hero() -> None:
+    st.markdown(
+        f"""
+        <div class="hero-card">
+          <h1>DE-SynPUF Claims Analytics Workbench</h1>
+          <p>
+            A reproducible synthetic Medicare claims warehouse, risk modeling, and explanation layer.
+            Active database: <strong>{DB_PATH}</strong>.
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def metric_row(summary: pd.DataFrame) -> None:
     total_beneficiaries = int(summary["beneficiaries"].sum()) if not summary.empty else 0
     total_cost = float(summary["total_synthetic_cost"].sum()) if not summary.empty else 0
@@ -111,7 +152,16 @@ def metric_row(summary: pd.DataFrame) -> None:
     col3.metric("Avg annual cost", f"${avg_cost:,.0f}")
 
 
+def markdown_report(path: Path, title: str) -> None:
+    if path.exists():
+        with st.expander(title, expanded=False):
+            st.markdown(path.read_text())
+    else:
+        st.info(f"{title} has not been generated yet: `{path}`")
+
+
 def overview_page() -> None:
+    hero()
     st.title("Claims Warehouse Overview")
     st.caption("Synthetic CMS DE-SynPUF analytics. Not clinical evidence.")
     summary = query_df("SELECT * FROM gold_patient_cost_summary ORDER BY year")
@@ -126,7 +176,27 @@ def overview_page() -> None:
         )
         st.altair_chart(chart, use_container_width=True)
     with col2:
+        st.subheader("Utilization Summary")
         st.dataframe(utilization, use_container_width=True, hide_index=True)
+    st.subheader("Highest-Cost Synthetic Beneficiary-Years")
+    top_patients = query_df(
+        """
+        SELECT
+            beneficiary_id,
+            year,
+            age,
+            chronic_condition_count,
+            inpatient_claims_count,
+            outpatient_claims_count,
+            carrier_claims_count,
+            prescription_events_count,
+            total_synthetic_cost
+        FROM gold_patient_year_summary
+        ORDER BY total_synthetic_cost DESC
+        LIMIT 10
+        """
+    )
+    st.dataframe(top_patients, use_container_width=True, hide_index=True)
 
 
 def cost_analytics_page() -> None:
@@ -173,6 +243,103 @@ def utilization_page() -> None:
     st.dataframe(utilization, use_container_width=True, hide_index=True)
 
 
+def chronic_conditions_page() -> None:
+    st.title("Chronic Condition Analytics")
+    chronic = query_df(
+        """
+        SELECT
+            year,
+            condition_name,
+            beneficiaries_with_condition,
+            avg_cost_with_condition,
+            avg_cost_without_condition,
+            avg_cost_with_condition - avg_cost_without_condition AS avg_cost_difference
+        FROM gold_patient_chronic_condition_summary
+        ORDER BY year, avg_cost_difference DESC
+        """
+    )
+    if chronic.empty:
+        st.warning("No chronic-condition summary rows found.")
+        return
+
+    year_options = sorted(chronic["year"].dropna().unique())
+    selected_year = st.selectbox("Year", year_options, index=len(year_options) - 1)
+    year_df = chronic[chronic["year"] == selected_year].copy()
+    chart = alt.Chart(year_df).mark_bar(cornerRadiusTopRight=5, cornerRadiusBottomRight=5).encode(
+        x=alt.X("avg_cost_difference:Q", title="Avg synthetic cost difference"),
+        y=alt.Y("condition_name:N", sort="-x", title="Condition flag"),
+        color=alt.condition(
+            alt.datum.avg_cost_difference > 0,
+            alt.value("#b8664d"),
+            alt.value("#1d6f73"),
+        ),
+        tooltip=[
+            "condition_name",
+            alt.Tooltip("beneficiaries_with_condition:Q", format=","),
+            alt.Tooltip("avg_cost_with_condition:Q", format="$,.0f"),
+            alt.Tooltip("avg_cost_without_condition:Q", format="$,.0f"),
+            alt.Tooltip("avg_cost_difference:Q", format="$,.0f"),
+        ],
+    )
+    st.altair_chart(chart, use_container_width=True)
+    st.dataframe(year_df, use_container_width=True, hide_index=True)
+
+
+def cohort_explorer_page() -> None:
+    st.title("Cohort Explorer")
+    bounds = query_df(
+        """
+        SELECT
+            MIN(year) AS min_year,
+            MAX(year) AS max_year,
+            MIN(total_synthetic_cost) AS min_cost,
+            MAX(total_synthetic_cost) AS max_cost
+        FROM gold_patient_year_summary
+        """
+    ).iloc[0]
+    selected_years = st.slider(
+        "Year range",
+        min_value=int(bounds["min_year"]),
+        max_value=int(bounds["max_year"]),
+        value=(int(bounds["min_year"]), int(bounds["max_year"])),
+    )
+    min_cost = st.number_input(
+        "Minimum total synthetic cost",
+        min_value=0.0,
+        max_value=float(bounds["max_cost"] or 0),
+        value=0.0,
+        step=100.0,
+    )
+    repeated_only = st.checkbox("Repeated inpatient only")
+    repeated_clause = "AND repeated_inpatient = 1" if repeated_only else ""
+    cohort = query_df(
+        f"""
+        SELECT
+            beneficiary_id,
+            year,
+            age,
+            chronic_condition_count,
+            inpatient_claims_count,
+            outpatient_claims_count,
+            carrier_claims_count,
+            prescription_events_count,
+            total_synthetic_cost,
+            repeated_inpatient
+        FROM gold_patient_year_summary
+        WHERE year BETWEEN {int(selected_years[0])} AND {int(selected_years[1])}
+          AND total_synthetic_cost >= {float(min_cost)}
+          {repeated_clause}
+        ORDER BY total_synthetic_cost DESC
+        LIMIT 200
+        """
+    )
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Rows", f"{len(cohort):,}")
+    col2.metric("Avg synthetic cost", f"${cohort['total_synthetic_cost'].mean() if not cohort.empty else 0:,.0f}")
+    col3.metric("Repeated inpatient rows", f"{int(cohort['repeated_inpatient'].sum()) if not cohort.empty else 0:,}")
+    st.dataframe(cohort, use_container_width=True, hide_index=True)
+
+
 def risk_model_page() -> None:
     st.title("Risk Model")
     model_data = query_df(
@@ -201,6 +368,7 @@ def risk_model_page() -> None:
             )
             st.altair_chart(chart, use_container_width=True)
             st.dataframe(importance, use_container_width=True, hide_index=True)
+    markdown_report(MODEL_REPORT_MD, "Model Report")
 
 
 def patient_explainer_page() -> None:
@@ -234,6 +402,30 @@ def patient_explainer_page() -> None:
     st.write(explain_patient_year(feature_dict))
     with st.expander("Structured features"):
         st.json(feature_dict)
+    markdown_report(LLM_REPORT_MD, "Batch Explanation Examples")
+
+
+def quality_reports_page() -> None:
+    st.title("Quality & Reports")
+    if QUALITY_REPORT_JSON.exists():
+        report = json.loads(QUALITY_REPORT_JSON.read_text())
+        col1, col2 = st.columns(2)
+        col1.metric("Quality status", str(report.get("status", "unknown")).upper())
+        checks = pd.DataFrame(report.get("checks", []))
+        failures = 0 if checks.empty else int((checks["status"] != "pass").sum())
+        col2.metric("Failed checks", f"{failures:,}")
+        if not checks.empty:
+            st.subheader("Validation Checks")
+            st.dataframe(checks, use_container_width=True, hide_index=True)
+        table_summary = pd.DataFrame(report.get("table_summary", []))
+        if not table_summary.empty:
+            st.subheader("Warehouse Table Row Counts")
+            st.dataframe(table_summary, use_container_width=True, hide_index=True)
+    else:
+        st.info(f"No quality JSON report found yet: `{QUALITY_REPORT_JSON}`")
+    markdown_report(QUALITY_REPORT_MD, "Quality Markdown Report")
+    markdown_report(MODEL_REPORT_MD, "Model Markdown Report")
+    markdown_report(LLM_REPORT_MD, "LLM Explanation Markdown Report")
 
 
 def main() -> None:
@@ -241,7 +433,16 @@ def main() -> None:
         return
     page = st.sidebar.radio(
         "Dashboard Pages",
-        ["Overview", "Cost Analytics", "Utilization Analytics", "Risk Model", "Patient Explainer"],
+        [
+            "Overview",
+            "Cost Analytics",
+            "Utilization Analytics",
+            "Chronic Conditions",
+            "Cohort Explorer",
+            "Risk Model",
+            "Patient Explainer",
+            "Quality & Reports",
+        ],
     )
     if page == "Overview":
         overview_page()
@@ -249,10 +450,16 @@ def main() -> None:
         cost_analytics_page()
     elif page == "Utilization Analytics":
         utilization_page()
+    elif page == "Chronic Conditions":
+        chronic_conditions_page()
+    elif page == "Cohort Explorer":
+        cohort_explorer_page()
     elif page == "Risk Model":
         risk_model_page()
-    else:
+    elif page == "Patient Explainer":
         patient_explainer_page()
+    else:
+        quality_reports_page()
 
 
 if __name__ == "__main__":
