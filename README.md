@@ -70,6 +70,15 @@ Do not commit raw, interim, or processed data.
 
 ## Run The Pipeline
 
+If you have not downloaded CMS Sample 1 yet, run the tiny synthetic demo smoke test first:
+
+```bash
+make demo-smoke
+DESYNPUF_DB=data/processed/demo_desynpuf.duckdb make dashboard
+```
+
+For the real CMS Sample 1 workflow:
+
 ```bash
 make ingest
 make transform
@@ -88,6 +97,12 @@ streamlit run dashboard/streamlit_app.py
 
 ```bash
 pytest -q
+```
+
+The fastest end-to-end verification is:
+
+```bash
+make demo-smoke
 ```
 
 ## Outputs

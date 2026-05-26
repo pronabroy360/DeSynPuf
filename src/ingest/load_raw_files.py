@@ -93,9 +93,9 @@ def infer_bronze_table(path: Path) -> str | None:
     name = standardize_column_name(path.name)
 
     if "beneficiary" in name or "bene" in name:
-        year_match = re.search(r"(2008|2009|2010)", name)
-        if year_match:
-            return f"bronze_beneficiary_{year_match.group(1)}"
+        year_matches = re.findall(r"(2008|2009|2010)", name)
+        if year_matches:
+            return f"bronze_beneficiary_{year_matches[-1]}"
 
     if "inpatient" in name:
         return "bronze_inpatient_claims"
