@@ -95,6 +95,7 @@ make transform
 make validate
 make train
 make explain
+make packet
 make dashboard
 ```
 
@@ -106,6 +107,7 @@ python3 -m src.transform.build_claims_mart --db data/processed/desynpuf.duckdb
 python3 -m src.quality.validate_warehouse --db data/processed/desynpuf.duckdb
 python3 -m src.models.train_high_cost_model --db data/processed/desynpuf.duckdb
 python3 -m src.llm.generate_explanation_report --db data/processed/desynpuf.duckdb
+python3 -m src.reports.generate_professor_packet --context real --output docs/latest_professor_packet.md
 streamlit run dashboard/streamlit_app.py
 ```
 

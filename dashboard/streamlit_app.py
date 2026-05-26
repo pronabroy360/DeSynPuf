@@ -23,6 +23,7 @@ if DB_PATH.name.startswith("demo_"):
     MODEL_REPORT_MD = Path("docs/demo_model_report.md")
     COMPARISON_REPORT_MD = Path("docs/demo_model_comparison_report.md")
     LLM_REPORT_MD = Path("docs/demo_llm_explanation_report.md")
+    PROFESSOR_PACKET_MD = Path("docs/demo_professor_packet.md")
 else:
     METRICS_PATH = Path("data/processed/model_metrics.json")
     FEATURE_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
@@ -33,6 +34,7 @@ else:
     MODEL_REPORT_MD = Path("docs/latest_model_report.md")
     COMPARISON_REPORT_MD = Path("docs/latest_model_comparison_report.md")
     LLM_REPORT_MD = Path("docs/latest_llm_explanation_report.md")
+    PROFESSOR_PACKET_MD = Path("docs/latest_professor_packet.md")
 
 
 st.set_page_config(
@@ -561,6 +563,7 @@ def quality_reports_page() -> None:
     markdown_report(MODEL_REPORT_MD, "Model Markdown Report")
     markdown_report(COMPARISON_REPORT_MD, "Model Comparison Markdown Report")
     markdown_report(LLM_REPORT_MD, "LLM Explanation Markdown Report")
+    markdown_report(PROFESSOR_PACKET_MD, "Professor Packet")
 
 
 def main() -> None:

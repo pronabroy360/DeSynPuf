@@ -51,6 +51,12 @@ To run the complete demo sequence, including model training and explanation exam
 make demo-all
 ```
 
+`make demo-all` now also generates:
+
+```text
+docs/demo_professor_packet.md
+```
+
 ## Launch Dashboard Against Demo Data
 
 ```bash

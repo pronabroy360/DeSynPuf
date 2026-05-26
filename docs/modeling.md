@@ -69,3 +69,17 @@ Current feature groups:
 ## Responsible Interpretation
 
 Metrics from DE-SynPUF are workflow signals, not clinical validation. The dataset is synthetic and should not be used to claim real-world predictive performance.
+
+## Professor Packet
+
+After generating quality, model, and LLM reports, build a consolidated outreach packet:
+
+```bash
+make packet
+```
+
+Output:
+
+```text
+docs/latest_professor_packet.md
+```
