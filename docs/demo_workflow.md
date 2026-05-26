@@ -28,6 +28,7 @@ The smoke test:
 - loads Bronze DuckDB tables,
 - builds Silver claim and beneficiary tables,
 - builds Gold patient-year summaries,
+- runs warehouse quality checks,
 - validates expected row counts,
 - verifies that at least one high-cost label exists.
 
@@ -35,6 +36,13 @@ The demo database is written to:
 
 ```text
 data/processed/demo_desynpuf.duckdb
+```
+
+Aggregate quality reports are written to:
+
+```text
+data/processed/demo_quality_report.json
+docs/demo_quality_report.md
 ```
 
 ## Launch Dashboard Against Demo Data

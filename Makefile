@@ -2,7 +2,7 @@ PYTHON ?= python3
 RAW_DIR ?= data/raw
 DB ?= data/processed/desynpuf.duckdb
 
-.PHONY: install demo-data demo-smoke ingest transform features train dashboard api test clean
+.PHONY: install demo-data demo-smoke ingest transform validate features train dashboard api test clean
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -18,6 +18,9 @@ ingest:
 
 transform:
 	$(PYTHON) -m src.transform.build_claims_mart --db $(DB)
+
+validate:
+	$(PYTHON) -m src.quality.validate_warehouse --db $(DB)
 
 features: transform
 

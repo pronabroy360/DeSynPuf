@@ -82,6 +82,7 @@ For the real CMS Sample 1 workflow:
 ```bash
 make ingest
 make transform
+make validate
 make dashboard
 ```
 
@@ -90,6 +91,7 @@ Equivalent direct commands:
 ```bash
 python3 -m src.ingest.load_raw_files --raw-dir data/raw --db data/processed/desynpuf.duckdb
 python3 -m src.transform.build_claims_mart --db data/processed/desynpuf.duckdb
+python3 -m src.quality.validate_warehouse --db data/processed/desynpuf.duckdb
 streamlit run dashboard/streamlit_app.py
 ```
 
@@ -104,6 +106,11 @@ The fastest end-to-end verification is:
 ```bash
 make demo-smoke
 ```
+
+This also writes aggregate quality reports to:
+
+- `data/processed/demo_quality_report.json`
+- `docs/demo_quality_report.md`
 
 ## Outputs
 

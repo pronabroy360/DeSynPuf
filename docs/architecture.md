@@ -52,6 +52,12 @@ Silver cleaned tables
 Gold patient-year marts
         |
         v
+src.quality.validate_warehouse
+        |
+        v
+Aggregate data quality reports
+        |
+        v
 dashboard / API / ML / LLM explainer
 ```
 
@@ -60,4 +66,5 @@ dashboard / API / ML / LLM explainer
 - **DuckDB** keeps the first version lightweight, reproducible, and easy to run locally.
 - **All raw data stays out of git** using `.gitignore`.
 - **Dynamic column handling** makes the transforms tolerant of missing optional CMS fields.
+- **Quality checks** validate table existence, grains, required columns, year ranges, nonnegative metrics, and model labels.
 - **Safe explanation layer** avoids clinical claims and explicitly states that the data is synthetic.

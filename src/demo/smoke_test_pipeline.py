@@ -7,6 +7,7 @@ import duckdb
 
 from src.demo.create_demo_raw_files import create_demo_raw_files
 from src.ingest.load_raw_files import load_raw_files
+from src.quality.validate_warehouse import validate_warehouse
 from src.transform.common import run_gold_transforms, run_silver_transforms
 
 
@@ -47,6 +48,12 @@ def smoke_test_pipeline(raw_dir: Path = DEFAULT_RAW_DIR, db_path: Path = DEFAULT
     if high_cost_rows == 0:
         raise AssertionError("Expected at least one high-cost target label in demo data")
 
+    validate_warehouse(
+        db_path=db_path,
+        report_json=Path("data/processed/demo_quality_report.json"),
+        report_md=Path("docs/demo_quality_report.md"),
+        con=con,
+    )
     print(f"Smoke test complete: {db_path}")
 
 
