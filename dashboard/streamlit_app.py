@@ -13,7 +13,12 @@ from src.llm.patient_risk_explainer import explain_patient_year
 
 
 DB_PATH = Path(os.environ.get("DESYNPUF_DB", "data/processed/desynpuf.duckdb"))
-METRICS_PATH = Path("data/processed/model_metrics.json")
+if DB_PATH.name.startswith("demo_"):
+    METRICS_PATH = Path("data/processed/demo_model_metrics.json")
+    FEATURE_IMPORTANCE_PATH = Path("data/processed/demo_model_feature_importance.json")
+else:
+    METRICS_PATH = Path("data/processed/model_metrics.json")
+    FEATURE_IMPORTANCE_PATH = Path("data/processed/model_feature_importance.json")
 
 
 st.set_page_config(
@@ -184,6 +189,18 @@ def risk_model_page() -> None:
         st.json(json.loads(METRICS_PATH.read_text()))
     else:
         st.info("No trained model metrics yet. Run `make train` after building the Gold tables.")
+    if FEATURE_IMPORTANCE_PATH.exists():
+        st.subheader("Top Feature Importance")
+        importance = pd.DataFrame(json.loads(FEATURE_IMPORTANCE_PATH.read_text()))
+        if not importance.empty:
+            chart = alt.Chart(importance.head(20)).mark_bar(cornerRadiusTopRight=5, cornerRadiusBottomRight=5).encode(
+                x=alt.X("importance:Q", title="Importance"),
+                y=alt.Y("feature:N", sort="-x", title="Feature"),
+                color=alt.value("#b8664d"),
+                tooltip=["feature", alt.Tooltip("importance:Q", format=".4f")],
+            )
+            st.altair_chart(chart, use_container_width=True)
+            st.dataframe(importance, use_container_width=True, hide_index=True)
 
 
 def patient_explainer_page() -> None:
