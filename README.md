@@ -52,6 +52,15 @@ and high-cost prediction labels
 Streamlit dashboard + FastAPI + ML + LLM explanation layer
 ```
 
+Detailed docs:
+
+- [Architecture](docs/architecture.md)
+- [Schema and lineage](docs/schema_lineage.md)
+- [Data dictionary](docs/data_dictionary.md)
+- [Quality checks](docs/quality_checks.md)
+- [Modeling](docs/modeling.md)
+- [LLM explainer](docs/llm_explainer.md)
+
 ## Setup
 
 ```bash

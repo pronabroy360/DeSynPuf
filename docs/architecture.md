@@ -61,6 +61,8 @@ Aggregate data quality reports
 dashboard / API / ML / LLM explainer
 ```
 
+See `docs/schema_lineage.md` for the Mermaid lineage diagram and table grains.
+
 ## Design Choices
 
 - **DuckDB** keeps the first version lightweight, reproducible, and easy to run locally.
