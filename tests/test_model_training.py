@@ -67,4 +67,5 @@ def test_build_evaluation_artifacts_shapes():
     assert artifacts["threshold"] == 0.5
     assert len(artifacts["precision_recall_curve"]) > 0
     assert len(artifacts["calibration"]) > 0
+    assert len(artifacts["threshold_metrics"]) == 101
     assert "true_positive" in artifacts["confusion_matrix"]

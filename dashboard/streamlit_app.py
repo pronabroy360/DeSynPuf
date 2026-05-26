@@ -353,9 +353,43 @@ def risk_model_page() -> None:
         """
     )
     st.dataframe(model_data, use_container_width=True, hide_index=True)
+    metrics_payload: dict = {}
     if METRICS_PATH.exists():
         st.subheader("Saved Model Metrics")
-        st.json(json.loads(METRICS_PATH.read_text()))
+        metrics_payload = json.loads(METRICS_PATH.read_text())
+        st.json(metrics_payload)
+        metric_rows = []
+        for model_name, values in metrics_payload.items():
+            if model_name in {"best_model", "dataset"} or not isinstance(values, dict):
+                continue
+            metric_rows.append(
+                {
+                    "model": model_name,
+                    "auprc": values.get("auprc"),
+                    "auroc": values.get("auroc"),
+                    "f1": values.get("f1"),
+                    "precision": values.get("precision"),
+                    "precision_at_10_percent": values.get("precision_at_10_percent"),
+                }
+            )
+        metrics_df = pd.DataFrame(metric_rows)
+        if not metrics_df.empty:
+            st.subheader("Model Comparison")
+            comparison_long = metrics_df.melt(
+                id_vars=["model"],
+                value_vars=["f1", "precision", "precision_at_10_percent"],
+                var_name="metric",
+                value_name="value",
+            )
+            comp_chart = alt.Chart(comparison_long).mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+                x=alt.X("metric:N", title="Metric"),
+                y=alt.Y("value:Q", title="Score"),
+                color=alt.Color("model:N", scale=alt.Scale(range=["#b8664d", "#1d6f73"])),
+                column=alt.Column("model:N", title="Model"),
+                tooltip=["model", "metric", alt.Tooltip("value:Q", format=".4f")],
+            )
+            st.altair_chart(comp_chart, use_container_width=True)
+            st.dataframe(metrics_df, use_container_width=True, hide_index=True)
     else:
         st.info("No trained model metrics yet. Run `make train` after building the Gold tables.")
     if FEATURE_IMPORTANCE_PATH.exists():
@@ -373,12 +407,23 @@ def risk_model_page() -> None:
     if EVALUATION_PATH.exists():
         st.subheader("Evaluation Curves")
         evaluation = json.loads(EVALUATION_PATH.read_text())
-        best_model = evaluation.get("best_model")
-        model_eval = (evaluation.get("models") or {}).get(best_model, {})
+        model_names = sorted(list((evaluation.get("models") or {}).keys()))
+        if not model_names:
+            st.warning("Evaluation file exists but contains no model entries.")
+            return
+        default_model = evaluation.get("best_model") if evaluation.get("best_model") in model_names else model_names[0]
+        selected_model = st.selectbox("Model for curve inspection", model_names, index=model_names.index(default_model))
+        model_eval = (evaluation.get("models") or {}).get(selected_model, {})
         pr_df = pd.DataFrame(model_eval.get("precision_recall_curve") or [])
         roc_df = pd.DataFrame(model_eval.get("roc_curve") or [])
         calibration_df = pd.DataFrame(model_eval.get("calibration") or [])
         cm = model_eval.get("confusion_matrix") or {}
+        threshold_metrics_df = pd.DataFrame(model_eval.get("threshold_metrics") or [])
+        selected_threshold = st.slider("Threshold", min_value=0.0, max_value=1.0, value=0.5, step=0.01)
+        selected_threshold_row = None
+        if not threshold_metrics_df.empty:
+            threshold_metrics_df["threshold_delta"] = (threshold_metrics_df["threshold"] - selected_threshold).abs()
+            selected_threshold_row = threshold_metrics_df.sort_values("threshold_delta").iloc[0].to_dict()
         if not pr_df.empty:
             pr_chart = alt.Chart(pr_df).mark_line(strokeWidth=3, color="#1d6f73").encode(
                 x=alt.X("recall:Q", title="Recall"),
@@ -389,7 +434,7 @@ def risk_model_page() -> None:
                     alt.Tooltip("precision:Q", format=".4f"),
                 ],
             )
-            st.caption(f"Precision-Recall curve ({best_model})")
+            st.caption(f"Precision-Recall curve ({selected_model})")
             st.altair_chart(pr_chart, use_container_width=True)
         if not roc_df.empty:
             roc_chart = alt.Chart(roc_df).mark_line(strokeWidth=3, color="#b8664d").encode(
@@ -401,7 +446,7 @@ def risk_model_page() -> None:
                     alt.Tooltip("tpr:Q", format=".4f"),
                 ],
             )
-            st.caption(f"ROC curve ({best_model})")
+            st.caption(f"ROC curve ({selected_model})")
             st.altair_chart(roc_chart, use_container_width=True)
         if not calibration_df.empty:
             cal_chart = (
@@ -416,8 +461,24 @@ def risk_model_page() -> None:
                     ],
                 )
             )
-            st.caption(f"Calibration curve ({best_model})")
+            st.caption(f"Calibration curve ({selected_model})")
             st.altair_chart(cal_chart, use_container_width=True)
+        if selected_threshold_row:
+            st.subheader(f"Threshold Metrics ({selected_threshold_row['threshold']:.2f})")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Precision", f"{selected_threshold_row['precision']:.3f}")
+            col2.metric("Recall", f"{selected_threshold_row['recall']:.3f}")
+            col3.metric("Specificity", f"{selected_threshold_row['specificity']:.3f}")
+            col4.metric("Predicted positive rate", f"{selected_threshold_row['predicted_positive_rate']:.3f}")
+            cm_df = pd.DataFrame(
+                [
+                    {"metric": "True negatives", "value": int(selected_threshold_row["true_negative"])},
+                    {"metric": "False positives", "value": int(selected_threshold_row["false_positive"])},
+                    {"metric": "False negatives", "value": int(selected_threshold_row["false_negative"])},
+                    {"metric": "True positives", "value": int(selected_threshold_row["true_positive"])},
+                ]
+            )
+            st.dataframe(cm_df, use_container_width=True, hide_index=True)
         if cm:
             st.subheader("Confusion Matrix At Threshold 0.50")
             cm_df = pd.DataFrame(

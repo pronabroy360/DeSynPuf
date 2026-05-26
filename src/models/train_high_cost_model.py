@@ -126,6 +126,27 @@ def build_evaluation_artifacts(
         for idx in range(len(prob_true))
     ]
 
+    threshold_points: list[dict[str, float]] = []
+    for candidate in np.linspace(0.0, 1.0, 101):
+        candidate_pred = (y_score >= candidate).astype(int)
+        c_tn, c_fp, c_fn, c_tp = confusion_matrix(y_true, candidate_pred, labels=[0, 1]).ravel()
+        precision_denominator = c_tp + c_fp
+        recall_denominator = c_tp + c_fn
+        specificity_denominator = c_tn + c_fp
+        threshold_points.append(
+            {
+                "threshold": float(candidate),
+                "true_negative": float(c_tn),
+                "false_positive": float(c_fp),
+                "false_negative": float(c_fn),
+                "true_positive": float(c_tp),
+                "precision": float(c_tp / precision_denominator) if precision_denominator else 0.0,
+                "recall": float(c_tp / recall_denominator) if recall_denominator else 0.0,
+                "specificity": float(c_tn / specificity_denominator) if specificity_denominator else 0.0,
+                "predicted_positive_rate": float(np.mean(candidate_pred)),
+            }
+        )
+
     return {
         "threshold": float(threshold),
         "confusion_matrix": {
@@ -137,6 +158,7 @@ def build_evaluation_artifacts(
         "calibration": _downsample_curve(calibration_points, max_points=50),
         "precision_recall_curve": _downsample_curve(pr_points),
         "roc_curve": _downsample_curve(roc_points),
+        "threshold_metrics": threshold_points,
         "brier_score": float(brier_score_loss(y_true, y_score)),
         "positive_rate_test": float(np.mean(y_true)),
         "predicted_positive_rate_test": float(np.mean(y_pred)),

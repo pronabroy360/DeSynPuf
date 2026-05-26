@@ -27,7 +27,7 @@ make dashboard
 - **Utilization Analytics**: inpatient, outpatient, carrier, and prescription event frequencies.
 - **Chronic Conditions**: average synthetic cost differences by chronic-condition flag.
 - **Cohort Explorer**: filter beneficiary-years by year, cost threshold, and repeated inpatient use.
-- **Risk Model**: high-cost modeling rows, saved metrics, feature importance, precision-recall/ROC/calibration curves, confusion matrix, and model report.
+- **Risk Model**: high-cost modeling rows, saved metrics, side-by-side model comparison, feature importance, precision-recall/ROC/calibration curves, interactive threshold tuning, confusion matrix, and model report.
 - **Patient Explainer**: select a synthetic beneficiary-year and generate a safe non-diagnostic explanation.
 - **Quality & Reports**: quality-check results, table row counts, model report, and LLM explanation report.
 

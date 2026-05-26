@@ -48,6 +48,7 @@ docs/latest_model_report.md
 - precision-recall curve points
 - ROC curve points
 - calibration curve points
+- threshold sweep metrics (0.00 to 1.00 in 0.01 steps)
 - confusion matrix at threshold 0.50
 - Brier score and predicted positive rate
 
