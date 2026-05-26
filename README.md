@@ -75,6 +75,7 @@ If you have not downloaded CMS Sample 1 yet, run the tiny synthetic demo smoke t
 ```bash
 make demo-smoke
 make demo-train
+make demo-explain
 DESYNPUF_DB=data/processed/demo_desynpuf.duckdb make dashboard
 ```
 
@@ -85,6 +86,7 @@ make ingest
 make transform
 make validate
 make train
+make explain
 make dashboard
 ```
 
@@ -95,6 +97,7 @@ python3 -m src.ingest.load_raw_files --raw-dir data/raw --db data/processed/desy
 python3 -m src.transform.build_claims_mart --db data/processed/desynpuf.duckdb
 python3 -m src.quality.validate_warehouse --db data/processed/desynpuf.duckdb
 python3 -m src.models.train_high_cost_model --db data/processed/desynpuf.duckdb
+python3 -m src.llm.generate_explanation_report --db data/processed/desynpuf.duckdb
 streamlit run dashboard/streamlit_app.py
 ```
 

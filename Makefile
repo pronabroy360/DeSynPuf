@@ -2,7 +2,7 @@ PYTHON ?= python3
 RAW_DIR ?= data/raw
 DB ?= data/processed/desynpuf.duckdb
 
-.PHONY: install demo-data demo-smoke demo-train ingest transform validate features train dashboard api test clean
+.PHONY: install demo-data demo-smoke demo-train demo-explain ingest transform validate features train explain dashboard api test clean
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -21,6 +21,13 @@ demo-train:
 		--feature-importance-out data/processed/demo_model_feature_importance.json \
 		--report-md docs/demo_model_report.md
 
+demo-explain:
+	$(PYTHON) -m src.llm.generate_explanation_report \
+		--db data/processed/demo_desynpuf.duckdb \
+		--json-out data/processed/demo_llm_explanation_examples.json \
+		--report-md docs/demo_llm_explanation_report.md \
+		--limit 5
+
 ingest:
 	$(PYTHON) -m src.ingest.load_raw_files --raw-dir $(RAW_DIR) --db $(DB)
 
@@ -34,6 +41,9 @@ features: transform
 
 train:
 	$(PYTHON) -m src.models.train_high_cost_model --db $(DB)
+
+explain:
+	$(PYTHON) -m src.llm.generate_explanation_report --db $(DB)
 
 dashboard:
 	streamlit run dashboard/streamlit_app.py

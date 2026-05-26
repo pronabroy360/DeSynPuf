@@ -52,3 +52,18 @@ DESYNPUF_DB=data/processed/demo_desynpuf.duckdb make dashboard
 ```
 
 Use this only as a UI and pipeline demonstration. For portfolio results, run the same pipeline against CMS DE1.0 Sample 1.
+
+## Generate Demo Explanation Examples
+
+```bash
+make demo-explain
+```
+
+Outputs:
+
+```text
+data/processed/demo_llm_explanation_examples.json
+docs/demo_llm_explanation_report.md
+```
+
+These examples are generated from structured synthetic beneficiary-year features only. They are non-diagnostic and include explicit responsible-use language.
