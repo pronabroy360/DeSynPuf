@@ -1,4 +1,4 @@
-PYTHON ?= python3
+PYTHON ?= .venv/bin/python
 RAW_DIR ?= data/raw
 DB ?= data/processed/desynpuf.duckdb
 
@@ -57,13 +57,13 @@ packet:
 	$(PYTHON) -m src.reports.generate_professor_packet --context real --output docs/latest_professor_packet.md
 
 dashboard:
-	streamlit run dashboard/streamlit_app.py
+	$(PYTHON) -m streamlit run dashboard/streamlit_app.py
 
 api:
-	uvicorn src.api.main:app --reload
+	$(PYTHON) -m uvicorn src.api.main:app --reload
 
 test:
-	pytest -q
+	$(PYTHON) -m pytest -q
 
 clean:
 	rm -f $(DB) $(DB).wal data/processed/demo_desynpuf.duckdb data/processed/demo_desynpuf.duckdb.wal data/processed/demo_model_evaluation.json data/processed/model_evaluation.json data/processed/demo_model_comparison.json data/processed/model_comparison.json
